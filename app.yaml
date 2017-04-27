@@ -33,12 +33,23 @@ services:
           brooklyn.config:
             spark.app.class: "org.apache.spark.examples.SparkPi"
             spark.app.jar: "http://dl.bintray.com/typesafe/maven-releases/org/apache/spark/spark-examples_2.11/1.6.0-typesafe-001/spark-examples_2.11-1.6.0-typesafe-001.jar"
+        - type: spark-application
+          name: SparkTC
+          brooklyn.config:
+            spark.app.class: "org.apache.spark.examples.SparkTC"
+            spark.app.jar: "http://dl.bintray.com/typesafe/maven-releases/org/apache/spark/spark-examples_2.11/1.6.0-typesafe-001/spark-examples_2.11-1.6.0-typesafe-001.jar"
 
     memberSpec:
       $brooklyn:entitySpec:
         type: spark-node
         name: Spark Worker
         id: spark-worker
+        brooklyn.children:
+        - type: spark-application
+          name: SparkPi
+          brooklyn.config:
+            spark.app.class: "org.apache.spark.examples.SparkPi"
+            spark.app.jar: "http://dl.bintray.com/typesafe/maven-releases/org/apache/spark/spark-examples_2.11/1.6.0-typesafe-001/spark-examples_2.11-1.6.0-typesafe-001.jar"
         brooklyn.config:
           spark.master.url: $brooklyn:entity("spark-master").attributeWhenReady("spark.url")
           provisioning.properties:
@@ -46,4 +57,5 @@ services:
             - $brooklyn:object:
                 type: org.apache.brooklyn.location.jclouds.networking.SharedLocationSecurityGroupCustomizer
                 object.fields:
-                  tcpPortRanges: ["22","4040-4050","6066","8080"]
+                  tcpPortRanges: ["22","4040-4050","6066","8080","8081"]
+
