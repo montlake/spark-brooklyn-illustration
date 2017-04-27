@@ -1,5 +1,5 @@
 # uses the brooklyn-spark node
-name: Example App
+name: Example App AWS
 
 location: jclouds:aws-ec2:eu-west-1
 
@@ -20,6 +20,19 @@ services:
         type: spark-node
         name: Spark Master
         id: spark-master
+        brooklyn.config:
+          provisioning.properties:
+            customizers:
+            - $brooklyn:object:
+                type: org.apache.brooklyn.location.jclouds.networking.SharedLocationSecurityGroupCustomizer
+                object.fields:
+                  tcpPortRanges: ["22","4040-4050","6066","8080","8081"]
+        brooklyn.children:
+        - type: spark-application
+          name: SparkPi
+          brooklyn.config:
+            spark.app.class: "org.apache.spark.examples.SparkPi"
+            spark.app.jar: "http://dl.bintray.com/typesafe/maven-releases/org/apache/spark/spark-examples_2.11/1.6.0-typesafe-001/spark-examples_2.11-1.6.0-typesafe-001.jar"
 
     memberSpec:
       $brooklyn:entitySpec:
@@ -28,8 +41,9 @@ services:
         id: spark-worker
         brooklyn.config:
           spark.master.url: $brooklyn:entity("spark-master").attributeWhenReady("spark.url")
-        brooklyn.children:
-          - type: spark-application
-          - type: spark-application
-            brooklyn.config:
-              spark.app.class: "org.apache.spark.examples.SparkTC"
+          provisioning.properties:
+            customizers:
+            - $brooklyn:object:
+                type: org.apache.brooklyn.location.jclouds.networking.SharedLocationSecurityGroupCustomizer
+                object.fields:
+                  tcpPortRanges: ["22","4040-4050","6066","8080"]
