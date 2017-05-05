@@ -6,6 +6,13 @@ location: jclouds:aws-ec2:eu-west-1
 services:
 - type: org.apache.brooklyn.entity.stock.BasicApplication
   id: app
+  brooklyn.enrichers:
+    # Propagate the URI published by the load balancer to the root application.
+    - type: org.apache.brooklyn.enricher.stock.Propagator
+      brooklyn.config:
+        producer: $brooklyn:entity("spark-cluster")
+        propagating:
+          - $brooklyn:sensor("main.uri")
 
   brooklyn.children:
   - type: org.apache.brooklyn.entity.group.DynamicCluster
@@ -14,19 +21,24 @@ services:
     id: spark-cluster
     brooklyn.config:
       cluster.initial.size: 3
-
+    brooklyn.enrichers:
+      - type: org.apache.brooklyn.enricher.stock.Aggregator
+        brooklyn.config:
+          enricher.sourceSensor: $brooklyn:sensor("master.main.uri")
+          enricher.targetSensor: $brooklyn:sensor("main.uri")
+          enricher.aggregating.fromMembers: true
+          enricher.aggregator.excludeBlank: true
     firstMemberSpec:
       $brooklyn:entitySpec:
         type: spark-node
         name: Spark Master
         id: spark-master
-        brooklyn.config:
-          provisioning.properties:
-            customizers:
-            - $brooklyn:object:
-                type: org.apache.brooklyn.location.jclouds.networking.SharedLocationSecurityGroupCustomizer
-                object.fields:
-                  tcpPortRanges: ["22","4040-4050","6066","8080","8081"]
+        brooklyn.enrichers:
+          - type: org.apache.brooklyn.enricher.stock.Transformer
+            brooklyn.config:
+              enricher.sourceSensor: $brooklyn:sensor("main.uri")
+              enricher.targetSensor: $brooklyn:sensor("master.main.uri")
+              enricher.targetValue: $brooklyn:attributeWhenReady("main.uri")
         brooklyn.children:
         - type: spark-application
           name: SparkPi
@@ -44,18 +56,12 @@ services:
         type: spark-node
         name: Spark Worker
         id: spark-worker
+
+        brooklyn.config:
+          spark.master.url: $brooklyn:entity("spark-master").attributeWhenReady("spark.url")
         brooklyn.children:
         - type: spark-application
           name: SparkPi
           brooklyn.config:
             spark.app.class: "org.apache.spark.examples.SparkPi"
             spark.app.jar: "http://dl.bintray.com/typesafe/maven-releases/org/apache/spark/spark-examples_2.11/1.6.0-typesafe-001/spark-examples_2.11-1.6.0-typesafe-001.jar"
-        brooklyn.config:
-          spark.master.url: $brooklyn:entity("spark-master").attributeWhenReady("spark.url")
-          provisioning.properties:
-            customizers:
-            - $brooklyn:object:
-                type: org.apache.brooklyn.location.jclouds.networking.SharedLocationSecurityGroupCustomizer
-                object.fields:
-                  tcpPortRanges: ["22","4040-4050","6066","8080","8081"]
-
