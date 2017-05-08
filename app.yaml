@@ -56,12 +56,6 @@ services:
         type: spark-node
         name: Spark Worker
         id: spark-worker
-
         brooklyn.config:
           spark.master.url: $brooklyn:entity("spark-master").attributeWhenReady("spark.url")
-        brooklyn.children:
-        - type: spark-application
-          name: SparkPi
-          brooklyn.config:
-            spark.app.class: "org.apache.spark.examples.SparkPi"
-            spark.app.jar: "http://dl.bintray.com/typesafe/maven-releases/org/apache/spark/spark-examples_2.11/1.6.0-typesafe-001/spark-examples_2.11-1.6.0-typesafe-001.jar"
+
