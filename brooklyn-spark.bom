@@ -1,4 +1,4 @@
 brooklyn.catalog:
   items:
     # loads the brooklyn-spark component definition
-    - https://raw.githubusercontent.com/brooklyncentral/brooklyn-spark/8eb7d63ef082f185f697d56795e409d076c77914/catalog/spark/spark.bom
+    - https://raw.githubusercontent.com/brooklyncentral/brooklyn-spark/75bc403215c20b9a5e4407a120bf787c0b186e0c/catalog/spark/spark.bom
