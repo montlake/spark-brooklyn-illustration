@@ -1,0 +1,62 @@
+# uses the brooklyn-spark node
+brooklyn.catalog:
+  version: 0.1.0
+
+  iconUrl: https://upload.wikimedia.org/wikipedia/commons/e/ea/Spark-logo-192x100px.png
+  description: |
+    Enhancing the Apache Brooklyn Spark community blueprint.
+  publish:
+  license_code: Apache-2.0
+#      overview: README.md
+  name: "Montlake Brooklyn Spark Application"
+  itemType: template
+  item:
+    services:
+    - type: org.apache.brooklyn.entity.stock.BasicApplication
+      id: app
+
+      brooklyn.children:
+      - type: org.apache.brooklyn.entity.group.DynamicCluster
+        description: An Apache Spark cluster
+        name: Spark Cluster
+        id: spark-cluster
+        brooklyn.config:
+          cluster.initial.size: 3
+
+        firstMemberSpec:
+          $brooklyn:entitySpec:
+            type: spark-node
+            name: Spark Master
+            id: spark-master
+            brooklyn.config:
+              provisioning.properties:
+                customizers:
+                - $brooklyn:object:
+                    type: org.apache.brooklyn.location.jclouds.networking.SharedLocationSecurityGroupCustomizer
+                    object.fields:
+                      tcpPortRanges: ["22","4040-4050","6066","8080","8081"]
+            brooklyn.children:
+            - type: spark-application
+              name: SparkPi
+              brooklyn.config:
+                spark.app.class: "org.apache.spark.examples.SparkPi"
+                spark.app.jar: "http://dl.bintray.com/typesafe/maven-releases/org/apache/spark/spark-examples_2.11/1.6.0-typesafe-001/spark-examples_2.11-1.6.0-typesafe-001.jar"
+            - type: spark-application
+              name: SparkTC
+              brooklyn.config:
+                spark.app.class: "org.apache.spark.examples.SparkTC"
+                spark.app.jar: "http://dl.bintray.com/typesafe/maven-releases/org/apache/spark/spark-examples_2.11/1.6.0-typesafe-001/spark-examples_2.11-1.6.0-typesafe-001.jar"
+
+        memberSpec:
+          $brooklyn:entitySpec:
+            type: spark-node
+            name: Spark Worker
+            id: spark-worker
+            brooklyn.config:
+              spark.master.url: $brooklyn:entity("spark-master").attributeWhenReady("spark.url")
+              provisioning.properties:
+                customizers:
+                - $brooklyn:object:
+                    type: org.apache.brooklyn.location.jclouds.networking.SharedLocationSecurityGroupCustomizer
+                    object.fields:
+                      tcpPortRanges: ["22","4040-4050","6066","8080","8081"]
