@@ -2,3 +2,67 @@ brooklyn.catalog:
   items:
     # loads the brooklyn-spark component definition
     - https://raw.githubusercontent.com/brooklyncentral/brooklyn-spark/75bc403215c20b9a5e4407a120bf787c0b186e0c/catalog/spark/spark.bom
+
+    - id: brooklyn-spark-template
+      name: Spark App with Job Submission
+      description: |
+        Deploys a cluster of Apache Spark nodes and submits jobs to the master
+        once it is running.
+      itemType: template
+      item:
+        services:
+        - type: org.apache.brooklyn.entity.stock.BasicApplication
+          name: Example Spark App
+          id: app
+          brooklyn.enrichers:
+            # Propagate the URI published by the load balancer to the root application.
+            - type: org.apache.brooklyn.enricher.stock.Propagator
+              brooklyn.config:
+                producer: $brooklyn:entity("spark-cluster")
+                propagating:
+                  - $brooklyn:sensor("main.uri")
+
+          brooklyn.children:
+          - type: org.apache.brooklyn.entity.group.DynamicCluster
+            description: An Apache Spark cluster
+            name: Spark Cluster
+            id: spark-cluster
+            brooklyn.config:
+              cluster.initial.size: 3
+            brooklyn.enrichers:
+              - type: org.apache.brooklyn.enricher.stock.Aggregator
+                brooklyn.config:
+                  enricher.sourceSensor: $brooklyn:sensor("master.main.uri")
+                  enricher.targetSensor: $brooklyn:sensor("main.uri")
+                  enricher.aggregating.fromMembers: true
+                  enricher.aggregator.excludeBlank: true
+            firstMemberSpec:
+              $brooklyn:entitySpec:
+                type: spark-node
+                name: Spark Master
+                id: spark-master
+                brooklyn.enrichers:
+                  - type: org.apache.brooklyn.enricher.stock.Transformer
+                    brooklyn.config:
+                      enricher.sourceSensor: $brooklyn:sensor("main.uri")
+                      enricher.targetSensor: $brooklyn:sensor("master.main.uri")
+                      enricher.targetValue: $brooklyn:attributeWhenReady("main.uri")
+                brooklyn.children:
+                - type: spark-application
+                  name: SparkPi
+                  brooklyn.config:
+                    spark.app.class: "org.apache.spark.examples.SparkPi"
+                    spark.app.jar: "http://dl.bintray.com/typesafe/maven-releases/org/apache/spark/spark-examples_2.11/1.6.0-typesafe-001/spark-examples_2.11-1.6.0-typesafe-001.jar"
+                - type: spark-application
+                  name: SparkTC
+                  brooklyn.config:
+                    spark.app.class: "org.apache.spark.examples.SparkTC"
+                    spark.app.jar: "http://dl.bintray.com/typesafe/maven-releases/org/apache/spark/spark-examples_2.11/1.6.0-typesafe-001/spark-examples_2.11-1.6.0-typesafe-001.jar"
+
+            memberSpec:
+              $brooklyn:entitySpec:
+                type: spark-node
+                name: Spark Worker
+                id: spark-worker
+                brooklyn.config:
+                  spark.master.url: $brooklyn:entity("spark-master").attributeWhenReady("spark.url")
